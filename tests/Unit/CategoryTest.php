@@ -8,7 +8,7 @@ use App\Models\Traits\Uuid;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 use Illuminate\Foundation\Testing\WithFaker;
 
 
@@ -27,7 +27,7 @@ class CategoryTest extends TestCase
 
     public function testFillableAttribute()
     {
-        $fillable = ['name', 'descripition', 'is_active'];
+        $fillable = ['name', 'description', 'is_active'];
         $category = new Category();
         $this->assertEquals($fillable, $category->getFillable());
     }
