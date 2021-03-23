@@ -1,12 +1,10 @@
 <?php
 
-namespace Tests\Unit;
+namespace Tests\Unit\Models;
 
 use App\Models\Category;
-use App\Models\Genre;
 use App\Models\Traits\Uuid;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -14,10 +12,14 @@ use Illuminate\Foundation\Testing\WithFaker;
 
 class CategoryTest extends TestCase
 {
-    use DatabaseMigrations;
+    private $category;
+
+    protected function setUp(): void{
+        parent::setUp();
+        $this->category = new Category();
+    }
 
     public function testIfUseTraits(){
-        Genre::create(['name' => 'test']);
         $traits = [
             SoftDeletes::class, Uuid::class
         ];
@@ -28,32 +30,26 @@ class CategoryTest extends TestCase
     public function testFillableAttribute()
     {
         $fillable = ['name', 'description', 'is_active'];
-        $category = new Category();
-        $this->assertEquals($fillable, $category->getFillable());
+        $this->assertEquals($fillable, $this->category->getFillable());
     }
 
     public function testDatesAttribute()
     {
         $dates = ['deleted_at', 'created_at', 'updated_at'];
-        $category = new Category();
         foreach ($dates as $date){
-            $this->assertContains($date, $category->getDates());
+            $this->assertContains($date, $this->category->getDates());
         }
-        $this->assertCount(count($dates), $category->getDates());
+        $this->assertCount(count($dates), $this->category->getDates());
     }
-
-
 
     public function testCastsAttribute()
     {
-        $casts = ['id' => 'string'];
-        $category = new Category();
-        $this->assertEquals($casts, $category->getCasts());
+        $casts = ['id' => 'string', 'is_active' => 'boolean'];
+        $this->assertEquals($casts, $this->category->getCasts());
     }
 
     public function testIncrementingAttribute()
     {
-        $category = new Category();
-        $this->assertFalse($category->incrementing);
+        $this->assertFalse($this->category->incrementing);
     }
 }
