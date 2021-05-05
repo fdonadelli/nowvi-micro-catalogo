@@ -14,6 +14,5 @@ $factory->define(Video::class, function (Faker $faker) {
         'opened' => rand(0, 1),
         'rating' => $rating,
         'duration' => rand(1, 30),
-        
     ];
 });

@@ -1,145 +1,126 @@
 <?php
 
-
 namespace Tests\Feature\Http\Controllers\Api;
 
-
-use App\Http\Resources\CastMemberResource;
-use App\Models\CastMember;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use App\Http\Controllers\Api\BasicCrudController;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Tests\Stubs\Controllers\CategoryControllerStub;
+use Tests\Stubs\Models\CategoryStub;
 use Tests\TestCase;
-use Tests\Traits\TestResources;
-use Tests\Traits\TestSaves;
-use Tests\Traits\TestValidations;
 
-class CastMemberControllerTest extends TestCase
+class BasicCrudControllerTest extends TestCase
 {
-    use DatabaseMigrations, TestValidations, TestSaves, TestResources;
-
-
-    private $castMember;
-    private $fieldsSerialized = [
-        'id',
-        'name',
-        'type',
-        'created_at',
-        'updated_at',
-        'deleted_at'
-    ];
+    private $controller;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->castMember = factory(CastMember::class)->create([
-            'type' => CastMember::TYPE_DIRECTOR
-        ]);
+        CategoryStub::dropTable();
+        CategoryStub::createTable();
+        $this->controller = new CategoryControllerStub();
+    }
+
+    protected function tearDown(): void
+    {
+        CategoryStub::dropTable();
+        parent::tearDown();
     }
 
     public function testIndex()
     {
-        $response = $this->get(route('cast_members.index'));
-
-        $response
-            ->assertStatus(200)
-            ->assertJsonStructure(
-                [
-                    'data' => [
-                        '*' => $this->fieldsSerialized
-                    ],
-                    'meta' => [],
-                    'links' => []
-                ]
-            )
-            ->assertJsonFragment($this->castMember->toArray());
+        /** @var CategoryStub $category */
+        $category = CategoryStub::create(['name' => 'test_name', 'description' => 'test_description']);
+        $resource = $this->controller->index();
+        $serialized = $resource->response()->getData(true);
+        $this->assertEquals(
+            [$category->toArray()],
+            $serialized['data']
+        );
+        $this->assertArrayHasKey('meta', $serialized);
+        $this->assertArrayHasKey('links', $serialized);
     }
 
-    public function testInvalidationData()
+    public function testInvalidationDataInStore()
     {
-        $data = [
-            'name' => '',
-            'type' => ''
-        ];
-        $this->assertInvalidationInStoreAction($data, 'required');
-        $this->assertInvalidationInUpdateAction($data, 'required');
+        $this->expectException(ValidationException::class);
 
-        $data = [
-            'type' => 's'
-        ];
-        $this->assertInvalidationInStoreAction($data, 'in');
-        $this->assertInvalidationInUpdateAction($data, 'in');
+        $request = \Mockery::mock(Request::class);
+        $request
+            ->shouldReceive('all')
+            ->once()
+            ->andReturn(['name' => '']);
+        $this->controller->store($request);
     }
 
     public function testStore()
     {
-        $data = [
-            [
-                'name' => 'test',
-                'type' => CastMember::TYPE_DIRECTOR
-            ],
-            [
-                'name' => 'test',
-                'type' => CastMember::TYPE_ACTOR
-            ]
-        ];
-        foreach ($data as $key => $value) {
-            $response = $this->assertStore($value, $value + ['deleted_at' => null]);
-            $response->assertJsonStructure([
-                'data' => $this->fieldsSerialized
-            ]);
-            $this->assertResource($response, new CastMemberResource(
-                CastMember::find($response->json('data.id'))
-            ));
-        }
+        $request = \Mockery::mock(Request::class);
+        $request
+            ->shouldReceive('all')
+            ->once()
+            ->andReturn(['name' => 'test_name', 'description' => 'test_description']);
+
+        $resource = $this->controller->store($request);
+        $serialized = $resource->response()->getData(true);
+        $this->assertEquals( CategoryStub::first()->toArray(), $serialized['data']);
     }
 
-    public function testUpdate()
+    public function testIfFindOrFailFetchModel()
     {
-        $data = [
-            'name' => 'test',
-            'type' => CastMember::TYPE_ACTOR
-        ];
-        $response = $this->assertUpdate($data, $data + ['deleted_at' => null]);
-        $response->assertJsonStructure([
-            'data' => $this->fieldsSerialized
-        ]);
-        $this->assertResource($response, new CastMemberResource(
-            CastMember::find($response->json('data.id'))
-        ));
+        /** @var CategoryStub $category */
+        $category = CategoryStub::create(['name' => 'test_name', 'description' => 'test_description']);
+
+        $reflectionClass = new \ReflectionClass(BasicCrudController::class);
+        $reflectionMethod = $reflectionClass->getMethod('findOrFail');
+        $reflectionMethod->setAccessible(true);
+
+        $resource = $reflectionMethod->invokeArgs($this->controller, [$category->id]);
+        $this->assertInstanceOf(CategoryStub::class, $resource);
+    }
+
+
+    public function testIfFindOrFailThrowExceptionWhenIdInvalid()
+    {
+        $this->expectException(ModelNotFoundException::class);
+
+        $reflectionClass = new \ReflectionClass(BasicCrudController::class);
+        $reflectionMethod = $reflectionClass->getMethod('findOrFail');
+        $reflectionMethod->setAccessible(true);
+
+        $reflectionMethod->invokeArgs($this->controller, [0]);
     }
 
     public function testShow()
     {
-        $response = $this->json('GET', route('cast_members.show', ['cast_member' => $this->castMember->id]));
-        $response
-            ->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => $this->fieldsSerialized
-            ])
-            ->assertJsonFragment($this->castMember->toArray());
+        $category = CategoryStub::create(['name' => 'test_name', 'description' => 'test_description']);
+        $resource = $this->controller->show($category->id);
+        $serialized = $resource->response()->getData(true);
+        $this->assertEquals($category->toArray(), $serialized['data']);
+    }
 
-        $this->assertResource($response, new CastMemberResource($this->castMember));
+    public function testUpdate()
+    {
+        $category = CategoryStub::create(['name' => 'test_name', 'description' => 'test_description']);
+        $request = \Mockery::mock(Request::class);
+        $request->shouldReceive('all')
+            ->once()
+            ->andReturn(['name' => 'test_changed', 'description' => 'test_description_changed']);
+        $resource = $this->controller->update($request, $category->id);
+        $serialized = $resource->response()->getData(true);
+        $category->refresh();
+        $this->assertEquals( $category->toArray(), $serialized['data']);
     }
 
     public function testDestroy()
     {
-        $response = $this->json('DELETE', route('cast_members.destroy', ['cast_member' => $this->castMember->id]));
-        $response->assertStatus(204);
-        $this->assertNull(CastMember::find($this->castMember->id));
-        $this->assertNotNull(CastMember::withTrashed()->find($this->castMember->id));
+        $category = CategoryStub::create(['name' => 'test_name', 'description' => 'test_description']);
+        $response = $this->controller->destroy($category->id);
+        $this
+            ->createTestResponse($response)
+            ->assertStatus(204);
+        $this->assertCount(0, CategoryStub::all());
     }
 
-    protected function model()
-    {
-        return CastMember::class;
-    }
-
-    protected function routeStore()
-    {
-        return route('cast_members.store');
-    }
-
-    protected function routeUpdate()
-    {
-        return route('cast_members.update', ['cast_member' => $this->castMember->id]);
-    }
 }

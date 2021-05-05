@@ -4,22 +4,25 @@ namespace Tests\Feature\Models;
 
 use App\Models\Genre;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
+use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class GenreTest extends TestCase
 {
-
     use DatabaseMigrations;
 
+    /**
+     * A basic feature test example.
+     *
+     * @return void
+     */
     public function testList()
     {
-        factory(Genre::class, 1)->create();
-        $genres = Genre::All();
+        factory(Genre::class)->create();
+        $genres = Genre::all();
         $this->assertCount(1, $genres);
-
-        $genreKey = array_keys($genres->first()->getAttributes());
+        $genreKeys = array_keys($genres->first()->getAttributes());
         $this->assertEqualsCanonicalizing(
             [
                 'id',
@@ -29,27 +32,27 @@ class GenreTest extends TestCase
                 'updated_at',
                 'deleted_at'
             ],
-            $genreKey
+            $genreKeys
         );
     }
 
-    public function testCreate() {
+    public function testCreate()
+    {
         $genre = Genre::create([
             'name' => 'test1'
         ]);
         $genre->refresh();
 
+
         $this->assertEquals(36, strlen($genre->id));
         $this->assertEquals('test1', $genre->name);
-        $this->assertTrue((bool)$genre->is_active);
+        $this->assertTrue($genre->is_active);
 
         $genre = Genre::create([
             'name' => 'test1',
+            'is_active' => false
         ]);
-
-        $genre = Genre::create([
-            'name' => 'test1',
-        ]);
+        $this->assertFalse($genre->is_active);
 
         $genre = Genre::create([
             'name' => 'test1',
@@ -58,23 +61,27 @@ class GenreTest extends TestCase
         $this->assertTrue($genre->is_active);
     }
 
-    public function testUpdate() {
+    public function testUpdate()
+    {
+        /** @var Genre $genre */
         $genre = factory(Genre::class)->create([
             'is_active' => false
         ]);
 
-        $data =[
-            'name' => 'update_name',
+        $data = [
+            'name' => 'test_name_updated',
             'is_active' => true
         ];
         $genre->update($data);
 
-        foreach ($data as $key => $value) {
+        foreach($data as $key => $value){
             $this->assertEquals($value, $genre->{$key});
-        };
+        }
+
     }
 
-    public function testeDelete(){
+    public function testDelete(){
+        /** @var Genre $genre */
         $genre = factory(Genre::class)->create();
         $genre->delete();
         $this->assertNull(Genre::find($genre->id));
