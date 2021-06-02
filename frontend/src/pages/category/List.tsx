@@ -5,7 +5,7 @@ import { Page } from '../../components/Page';
 const List = () => {
     return (
         <Page title="Listar Categorias">
-            
+            asdasdas
         </Page>
     );
 };
